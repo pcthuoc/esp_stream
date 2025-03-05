@@ -27,13 +27,13 @@ def login_view(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect("/customers/profile/")
+                return redirect("home")
             else:
                 msg = 'Invalid credentials'
         else:
             msg = 'Error validating the form'
 
-    return render(request, "accounts/login.html", {"form": form, "msg": msg})
+    return render(request, "sign-in.html", {"form": form, "msg": msg})
 
 
 def register_user(request):
@@ -48,7 +48,7 @@ def register_user(request):
             raw_password = form.cleaned_data.get("password1")
             user = authenticate(username=username, password=raw_password)
 
-            msg = 'User created - please <a href="/login">login</a>.'
+            msg = 'Tạo tài khoản thành công <a href="/login">Đăng nhập</a>.'
             success = True
 
             # return redirect("/login/")
@@ -58,4 +58,4 @@ def register_user(request):
     else:
         form = SignUpForm()
 
-    return render(request, "accounts/register.html", {"form": form, "msg": msg, "success": success})
+    return render(request, "sign-up.html", {"form": form, "msg": msg, "success": success})

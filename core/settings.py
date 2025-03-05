@@ -21,23 +21,29 @@ if not SECRET_KEY:
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG   = os.getenv('DEBUG', False)
-DEVEL   = os.getenv('DEVEL', False)
-SERVER  = os.getenv('DEVEL', '127.0.0.1')
-
+DEVEL   = True
+ASGI_APPLICATION = 'core.asgi.application'
+REDIS_HOST = os.getenv('REDIS_HOST', '0.0.0.0')
+REDIS_PORT = os.getenv('REDIS_PORT', 6379)
 # load production server from .env
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', SERVER]
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
 INSTALLED_APPS = [
+     'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+
     'django.contrib.staticfiles',
+   
+    'channels',
     'app',  # Enable the inner app
-    'customers'
+    'audiofile',
+    'tcpserver'
 ]
 
 MIDDLEWARE = [
@@ -83,6 +89,17 @@ DATABASES = {
         'NAME'  : 'db.sqlite3',
     }
 }
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(str(REDIS_HOST), int(REDIS_PORT))]
+
+        },
+    },
+}
+
+
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
@@ -108,13 +125,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 USE_I18N = True
 
 USE_L10N = True
 
 USE_TZ = True
+
 
 #############################################################
 # SRC: https://devcenter.heroku.com/articles/django-assets
@@ -125,6 +144,7 @@ STATIC_ROOT = os.path.join(CORE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(CORE_DIR, 'media')
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
+
 
 # Extra places for collectstatic to find static files.
 STATICFILES_DIRS = (

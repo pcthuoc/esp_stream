@@ -1,0 +1,123 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block stylesheets %}{% endblock stylesheets %}
+
+{% block content %}
+<main class="content">
+    {% include 'includes/navigation.html' %}
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
+        <button class="btn btn-primary btn-sm" id="startStream">Start Live Stream</button>
+        <button class="btn btn-danger btn-sm" id="stopStream" style="display:none;">Stop Stream</button>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-xl-8 mb-4">
+            <div class="card border-light shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5">Live Audio Stream</h2>
+                </div>
+                <div class="card-body">
+                    <p>Click the button to start streaming live audio.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ âm lượng -->
+        <div class="col-12 col-xl-4 mb-4">
+            <div class="card border-light shadow-sm">
+                <div class="card-header">
+                    <h2 class="h5">Volume Visualization</h2>
+                </div>
+                <div class="card-body">
+                    <div id="volumeChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'includes/footer.html' %}
+</main>
+{% endblock content %}
+
+{% block javascripts %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://unpkg.com/pcm-player"></script>
+<script>
+    let socket;
+    let player;
+    let volumeData = Array(100).fill(0);  // Mảng để lưu trữ giá trị âm lượng gần đây
+
+    // Thiết lập biểu đồ Plotly
+    let volumeLayout = {
+        title: 'Volume Level',
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        xaxis: { showgrid: false, visible: false },
+        yaxis: { showgrid: false, range: [0, 1], title: 'Amplitude' }
+    };
+    Plotly.newPlot('volumeChart', [{ y: volumeData, type: 'line', line: { color: '#FF5733' } }], volumeLayout);
+
+    document.getElementById('startStream').addEventListener('click', function () {
+        if (!player) {
+            player = new PCMPlayer({
+                inputCodec: 'Int16',
+                channels: 2,
+                sampleRate: 16000
+            });
+        }
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            socket = new WebSocket('ws://' + window.location.host + '/ws/audio/');
+            socket.binaryType = 'arraybuffer';
+
+            socket.onopen = function () {
+                console.log("WebSocket connected!");
+                document.getElementById('startStream').style.display = 'none';
+                document.getElementById('stopStream').style.display = 'inline-block';
+            };
+
+            socket.onmessage = function (event) {
+                console.log("Data received from WebSocket.");
+                if (event.data instanceof ArrayBuffer && event.data.byteLength > 0) {
+                    let audioData = new Uint8Array(event.data);
+                    player.feed(audioData);
+                    updateVolumeGraph(audioData);  // Cập nhật biểu đồ âm lượng
+                }
+            };
+
+            socket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+
+            socket.onclose = function () {
+                console.log("WebSocket disconnected!");
+                document.getElementById('startStream').style.display = 'inline-block';
+                document.getElementById('stopStream').style.display = 'none';
+            };
+        }
+    });
+
+    document.getElementById('stopStream').addEventListener('click', function () {
+        if (socket) {
+            socket.close();
+        }
+    });
+
+    // Hàm cập nhật biểu đồ âm lượng
+    function updateVolumeGraph(audioData) {
+        let sum = 0;
+        for (let i = 0; i < audioData.length; i++) {
+            sum += Math.abs(audioData[i]);
+        }
+        let avgAmplitude = sum / audioData.length / 255;  // Chuẩn hóa giá trị âm lượng
+
+        volumeData.push(avgAmplitude);  // Thêm giá trị mới
+        if (volumeData.length > 100) volumeData.shift();  // Giữ lại 100 điểm gần nhất
+
+        Plotly.update('volumeChart', { y: [volumeData] });
+    }
+</script>
+{% endblock javascripts %}
